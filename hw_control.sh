@@ -32,46 +32,50 @@
 ###########################################################################
 #########################   DO NOT TOUCH   ################################
 ###########################################################################
-fanSpeedMinimum=35 # Minimum allowed fan speed in percent
+fanSpeedMinimum=20 # Minimum allowed fan speed in percent
 cpuOptimalTemp=35  # Optimal (desired) temp for CPU (commie C degrees not freedom F :()
 cpuMaxTemp=80      # Maximum CPU temp before going full beans
 mbMaxTemp=40       # Maximum MB temp before going full beans
 diskMaxTemp=40     # Maximum DISK temp before going full beans
 pmcMaxTemp=64      # Maximum PMC temp before going full beans
 ramMaxTemp=40      # Maximum RAM temp before going full beans
-updateRate=10      # How often in seconds to update temps
+updateRate=25      # How often in seconds to update temps
 
 ###########################################################################
 #############################   VARS   ####################################
 ###########################################################################
-datetime=()     
 hwSystem=Linux                # Used to init kernal variable, gets changed based on kernal in get_sys_info()
-hwTTY=/dev/cuau3              # Used to init tty variable, gets changed based on kernal in get_sys_info()
+hwTTY=/dev/ttyS2              # Used to init tty variable, gets changed based on kernal in get_sys_info()
 hwHDDArray=()
 hwCPUCoreCount=0
 hwOverTempAlarm=0
 hwOverTempArray=()
-
-
-
+hwVerbose=0
+hwI2cSupport=0
 
 ###########################################################################
 #############################   FUNCS   ###################################
 ###########################################################################
+
+vprint(){
+    if [ $hwVerbose -eq 1 ]; then
+        echo $1
+    fi
+}
 
 check_for_dependencies(){   # Simple just-to-be-safe check that SMART Mon exists
     depenflag=0
     # S.M.A.R.T Drive Utilities
     smartctl -v >/dev/null
     if [[ $? != 1 ]]; then
-        printf "\n** SMART not installed please run - sudo apt install smartmontools ** \n\n "
+        echo " WARNING: SMART not installed please run - sudo apt install smartmontools"
         (( depenflag += 1 ))
     fi
 
     # lm-Sensors (For temp sensor data )
     sensors -v >/dev/null
     if [[ $? != 0 ]]; then
-        printf "\n** lm-sensors not installed please run - sudo apt install smartmontools ** \n\n "
+        echo " WARNING: lm-sensors not installed please run - sudo apt install smartmontools "
         (( depenflag+=2 ))
     fi
     
@@ -87,7 +91,7 @@ check_for_dependencies(){   # Simple just-to-be-safe check that SMART Mon exists
         #        sudo apt install smartmontools && sudo apt install lm-sensors
         #    fi
         #fi
-        printf "\n\n## PROGRAM TERMINATED ##\n\n"
+        echo "## PROGRAM TERMINATED ##"
         exit
     fi
 }
@@ -97,17 +101,18 @@ get_sys_info(){         # Get system info based off kernal, as BSD/LINUX has not
         Linux*)  hwSystem=Linux;;
         *)       hwSystem="Other"
     esac
+    
     if [[ ! $hwSystem =~ Linux ]]; then  # If system is not Linux or *BSD Show unsupported message
-        echo "Sorry, This software version for the WD PR4100 Hawrdware does not support $hwSystem platform."
+        echo "Sorry, This software version for the WD PR4100 Hardware does not support $hwSystem platform."
         echo "Please create an issue on Github to see about gettin support added"
         exit 1
-    fi         
-	
+    fi     
+    
     if [ $hwSystem == Linux ]; then      # If Linux Unraid
-        echo '# GETINFO: Detected Linux Kernal #'    # Show what kernal was identified
-        hwTTY=/dev/ttyS2                    # Linux uses much cooler (telatype) /dev/hwTTYS2 for i2C comms to PR4100 front hardware
-        get_int_drives                      # Get location of ONLY internal bay drives
-        hwCPUCoreCount=$(nproc)             # Get how many CPU cores
+        vprint "# GETINFO: Detected Linux Kernel #"  # Show what kernal was identified
+        hwTTY=/dev/ttyS2                           # Linux uses much cooler (telatype) /dev/hwTTYS2 for i2C comms to PR4100 front hardware
+        get_int_drives                             # Get location of ONLY internal bay drives
+        hwCPUCoreCount=$(nproc)                    # Get how many CPU cores
     fi
 }
 
@@ -119,21 +124,44 @@ get_int_drives(){       # Gets the location of the internal bay HDD's
             readarray -t hwHDDArray < <(for a in "${tmparr[@]}"; do echo "/dev/$a"; done | sort) # Sort
         fi
     done
-    echo "# GETINFO: Detected internal bay drives: ${hwHDDArray[@]} #"
+    vprint "# GETINFO: Detected internal bay drives: ${hwHDDArray[@]} #"
 }
 
-setup_tty() {           # Start i2c
+setup_tty() {           # Start UART
     exec 4<$hwTTY 5>$hwTTY
 }
 
 setup_i2c() {           # load kernel modules required for the temperature sensor on the RAM modules
-    if [ $hwSystem == Linux ]; then
-        #kldload -n iicbus smbus smb ichsmb
-		echo "setup_i2c not supported!"
+    depenflag=0
+    tmp=$(ls /usr/lib64/ | grep libi2c.so.0)
+    if [[ "$tmp" == "" ]]; then
+        (( depenflag += 1 ))
+    fi
+    
+    #if [ $depenflag -gt 0 ]; then
+    #    echo "Install missing I2C driver!"
+    #    wget https://packages.slackonly.com/pub/packages/14.2-x86_64/system/i2c-tools/i2c-tools-4.1-x86_64-1_slonly.txz
+    #    tar -xf i2c-tools-4.1-x86_64-1_slonly.txz
+    #    rm i2c-tools-4.1-x86_64-1_slonly.txz
+    #    rm -rf ./install
+    #    cp ./usr/lib64/libi2c.so.0.1.1 ./usr/lib64/libi2c.so.0
+    #    rm ./usr/lib64/libi2c.so.0.1.1
+    #    cp -rf ./usr/* /usr/             
+    #    rm -rf ./usr        
+    #    modprobe i2c-dev
+    #    modprobe i2c-i801
+    #    echo "I2C support successfully installed"
+    #    depenflag=0
+    #fi
+    
+    if [ $depenflag -gt 0 ]; then    
+        echo "## I2C NOT SUPPORTED ##"
+    else
+        hwI2cSupport=1
     fi
 }
 
-send() {                # Requires input - i2C send function to send commands to front panel
+send() {                # Requires input - UART send function to send commands to front panel
     setup_tty
     # send a command to the PMC module and echo the answer
     echo -ne "$1\r" >&5
@@ -154,7 +182,6 @@ send() {                # Requires input - i2C send function to send commands to
     if [ ! -z $2 ]; then 
         echo "CMD $1 gives '$ans' at $2" >&2 
     fi 
-    echo $ans
     
     send_empty
     # deconstruct tty file pointers, otherwise this script breaks on sleep 
@@ -166,15 +193,6 @@ send_empty() {          # i2c send blank to clear front panel input
     # send a empty command to clear the output
     echo -ne "\r" >&5
     read ignore <&4
-}
-
-get_datetime() {        # Duh.... Sorry lol, easy time/date vars cuz cleaner
-    datetime[1]=$(date +"%m")
-    datetime[2]=$(date +"%d")
-    datetime[3]=$(date +"%y")
-    datetime[4]=$(date +"%H")
-    datetime[5]=$(date +"%M")
-    datetime[6]=$(date +"%S") 
 }
 
 get_pmc() {             # Requires input - Get a value from the PMC ex. inputing RPM gets fan0's rpm
@@ -196,32 +214,33 @@ get_cpucoretemp() {
     # get the CPU temperature and strip of the Celsius
     if [ $hwSystem == Linux ]; then
         temp=$(sensors | grep "Core $1")
-		
-		if [ "$temp" == "" ]; then
-		    sensors | grep "CPU Temp" | awk '{print $3}' | cut -d'.' -f1 | cut -b 2-3
-		else
-		    sensors | grep "Core $1" | awk '{print $3}' | cut -d'.' -f1 | cut -b 2-3
-		fi
-    fi  
+        
+        if [ "$temp" == "" ]; then
+            sensors | grep "CPU Temp" | awk '{print $3}' | cut -d'.' -f1 | cut -b 2-3
+        else
+            sensors | grep "Core $1" | awk '{print $3}' | cut -d'.' -f1 | cut -b 2-3
+        fi
+    fi
 }
 
 get_mainboardtemp() {
     # get the mainbaord temperature and strip of the Celsius
     if [ $hwSystem == Linux ]; then
         temp=$(sensors | grep "temp1")
-		
-		if [ "$temp" == "" ]; then
-		    sensors | grep "MB Temp" | awk '{print $3}' | cut -d'.' -f1 | cut -b 2-3
-		else
-		    sensors | grep "temp1" | awk '{print $2}' | cut -d'.' -f1 | cut -b 2-3
-		fi
-    fi  
+        
+        if [ "$temp" == "" ]; then
+            sensors | grep "MB Temp" | awk '{print $3}' | cut -d'.' -f1 | cut -b 2-3
+        else
+            sensors | grep "temp1" | awk '{print $2}' | cut -d'.' -f1 | cut -b 2-3
+        fi
+    fi
 }
 
 get_ramtemp() {
     # get the memory temperature from the I2C sensor
-    if [ $hwSystem == Linux ]; then
-	    # smbmsg -s 0x98 -c 0x0$1 -i 1 -F %d
+    if [ $hwI2cSupport == 1 ]; then
+        # smbmsg -s 0x98 -c 0x0$1 -i 1 -F %d
+	#else
         echo "0"
     fi
 }
@@ -229,27 +248,23 @@ get_ramtemp() {
 monitor() {             # TODO / Comment
     # check RPM (fan may get stuck) and convert hex to dec
     #readfanpercent=$(get_pmc FAN)
-    rpmhex=$(get_pmc RPM)
-    rpmdec=$((0x$rpmhex))
-    echo "FAN 0 RPM: $rpmdec"
-    if [ "$rpmdec" != ERR ]; then
-        if [ "$rpmdec" -lt 400 ]; then
-            echo "FAN 0 RPM WARNING: low RPM - $rpmdec - clean dust!"
-            set_pwr_led FLASH RED
-        fi
-    fi
+    rpm=$((0x$(get_pmc RPM)))
+    vprint "FAN Speed: $rpm"
+	if [ "$rpm" -lt 400 ]; then
+		echo " WARNING: FAN speed low - current RPM $rpm - check fan or clean dust!"
+		set_pwr_led FLASH RED
+	fi
     
     # Check the Temperature of the PMC and convert to hex 
-    tmphex=$(get_pmc TMP)   # I dont need to do this in 2 steps but VSCode complains soooooo..... 2 steps wowww 
-    tmpdec=$((0x$tmphex))   # use tmpdec=$((0x$(get_pmc TMP))) if you want, it works, i just hate the 'error'
-    if [ "$tmpdec" -gt $pmcMaxTemp ]; then
-        echo "WARNING: PMC surpassed maximum ($pmcMaxTemp°C), full throttle activated!"
+	tmp=$((0x$(get_pmc TMP)))
+    if [ "$tmp" -gt $pmcMaxTemp ]; then
+        echo " WARNING: PMC surpassed maximum ($pmcMaxTemp°C), full throttle activated!"
         hwOverTempAlarm=1 
         #hwOverTempArray+=("PMC $tmp°C/$pmcMaxTemp°C")"
     fi
 
     # Check the Hard Drive Temperature [adjust this for PR2100!!] (<- IDK what that means)
-    printf "|------ DISK TEMPS ------\n"
+    vprint "|------ DISK TEMPS ------"
     for i in "${hwHDDArray[@]}" ; do
         tmp=$(get_disktemp $i)
         waserror=$(echo $?)
@@ -259,26 +274,25 @@ monitor() {             # TODO / Comment
             else
                 ret=Error
             fi
-            echo "| Drive ${i:5:5} is in $ret status"
+            vprint "| Drive ${i:5:5} is in $ret status"
         else
-            echo "| Drive ${i:5:15} is $tmp °C"
+            vprint "| Drive ${i:5:15} is $tmp °C"
             if [ ! -z $tmp ] && [ $tmp -gt $diskMaxTemp ]; then
-                echo "| WARNING: Disk$i surpassed maximum ($diskMaxTemp°C), full throttle activated!" 
+                echo " WARNING: Disk$i surpassed maximum ($diskMaxTemp°C), full throttle activated!" 
                 hwOverTempAlarm=1
                 #hwOverTempArray+=("HDD$i $tmp°C/$hddMaxTemp°C")
             fi
-        fi  
+        fi
     done
-    printf "|------------------------\n"
 
     # Check the Temperature of the CPU
-	highestcpucoretemp=0
-    printf "|---- CPU CORE TEMPS ----\n"
+    highestcpucoretemp=0
+    vprint "|---- CPU CORE TEMPS ----"
     for i in $(seq $hwCPUCoreCount); do
         tmp=$(get_cpucoretemp $((i-1)))
-        echo "| CPU Core$i is $tmp °C"
+        vprint "| CPU Core$i is $tmp °C"
         if [ $tmp -gt $cpuMaxTemp ]; then
-            echo "| WARNING: CPU Core$i surpassed maximum ($cpuMaxTemp°C), full throttle activated!"
+            echo " WARNING: CPU Core$i surpassed maximum ($cpuMaxTemp°C), full throttle activated!"
             #hwOverTempArray+=("CPU$i $tmp°C/$cpuMaxTemp°C")
             hwOverTempAlarm=1
         fi
@@ -286,53 +300,51 @@ monitor() {             # TODO / Comment
             highestcpucoretemp=$tmp
         fi
     done
-	
-	#echo "Highest CPU core temp is $highestcpucoretemp °C"
+    
+    vprint "| Highest CPU core temp is $highestcpucoretemp °C"
+    
     #                                                       max-opperating=a   fullfan-minfan=b    b/a= fan percent per degree
-    #Max-80 Optimal-35 1.5% = for every degree above 30%      80-35=45         100-30=70             70/45=1.5   
+    #Max-80 Optimal-35 1.5% = for every degree above 30%      80-35=45         100-30=70             70/45=1.5
     newtmp=$(("$highestcpucoretemp"-"$cpuOptimalTemp"))  #MaxTemp 
     setspeed=$(("$newtmp"*2+"$fanSpeedMinimum"-5))
-	
-	printf "|------------------------\n"
-	
-	# Check the Temperature of the mainbaord
-	printf "|---- MAINBOARD TEMP ----\n"
-	tmp=$(get_mainboardtemp)
-	echo "| Mainbaord is $tmp °C"
-	if [ $tmp -gt $mbMaxTemp ]; then
-		echo "| WARNING: MB temp surpassed maximum ($mbMaxTemp°C), full throttle activated!"
-		#hwOverTempArray+=("MB temp $tmp°C/$mbMaxTemp°C")
-		hwOverTempAlarm=1
-	fi
-    printf "|------------------------\n"
-
+    
+    # Check the Temperature of the mainbaord
+    vprint "|---- MAINBOARD TEMP ----"
+    tmp=$(get_mainboardtemp)
+    vprint "| Mainbaord is $tmp °C"
+    if [ $tmp -gt $mbMaxTemp ]; then
+        echo " WARNING: MB temp surpassed maximum ($mbMaxTemp°C), full throttle activated!"
+        #hwOverTempArray+=("MB temp $tmp°C/$mbMaxTemp°C")
+        hwOverTempAlarm=1
+    fi
  
     # Check the installed RAM Temperature
-    printf "|------ RAM TEMPS -------\n"
-	for i in 0 1; do
-		tmp=$(get_ramtemp $i)
-		echo "| RAM$i is $tmp °C"
-		if [ "$tmp" -gt $ramMaxTemp ]; then
-			echo "| WARNING: RAM$i surpassed maximum ($ramMaxTemp°C), full throttle activated!"
-			#hwOverTempArray+=("RAM $tmp°C/$ramMaxTemp°C")
-			hwOverTempAlarm=1
-		fi
-	done
-    printf "|------------------------\n"
+	if [ $hwI2cSupport == 1 ]; then
+		vprint "|------ RAM TEMPS -------"
+		for i in 0 1; do
+			tmp=$(get_ramtemp $i)
+			vprint "| RAM$i is $tmp °C"
+			if [ "$tmp" -gt $ramMaxTemp ]; then
+				echo " WARNING: RAM$i surpassed maximum ($ramMaxTemp°C), full throttle activated!"
+				#hwOverTempArray+=("RAM $tmp°C/$ramMaxTemp°C")
+				hwOverTempAlarm=1
+			fi
+		done
+	fi
+    vprint "|------------------------"
 
     if [ ${#hwOverTempArray[@]} -gt 0 ] || [ $hwOverTempAlarm == 1 ]; then
         echo " WARNING: SYSTEM OVER LIMIT TEMPERATURE(s) FAN SET TO 100% "
         hwOverTempAlarm=1               # Flag System Over Temp-ed
-        #hwLastOverTemp=$(get_datetime) # Save the time when the system over temped
+        hwLastOverTemp=$(date)          # Save the time when the system over temped
         send FAN=64                     # Full Beans Fan 100%
         set_pwr_led FLASH RED           # Flash Power LED RED to warn
-        #write_logdata                  # OOOOO am I leaking future stuff?! 
     else
         if [ $setspeed -lt $fanSpeedMinimum ]; then
-            echo "Calculated fan speed below minimum allowed, bumping to $fanSpeedMinimum%..."
+            vprint "Calculated fan speed below minimum allowed, bumping to $fanSpeedMinimum%..."
             setspeed=$fanSpeedMinimum  # Set the fan to the min allowed
         else
-            echo "Setting fan speed to: $setspeed%"
+            vprint "Setting fan speed to: $setspeed%"
             send FAN=$setspeed         # Set fan to mathed speed if not overtemped
         fi
     fi
@@ -341,53 +353,58 @@ monitor() {             # TODO / Comment
 show_welcome() {
     # set welcome message
     # maximum  "xxx xxx xxx xxx "
-    send   "LN1=     UNRAID     "
-    send   "LN2=WD PR4100 Server"
+    send "LN1=     UNRAID "
+    send "LN2=WD PR4100 Server"
 }
 
 show_fan_speed() {
     # set fan speed message
     # maximum  "xxx xxx xxx xxx "
-    send   "LN1=Fan Speed:      "
+    send "LN1=Fan Speed:  "
 
-    rpm=$((0x$(get_pmc RPM)))
+    rpm=$((0x$(get_pmc RPM)))"rpm"
 
-    send   "LN2=$rpm"
+    send "LN2=$rpm"
 }
 
-show_cpu_temps() {
+show_sys_temp() {
     # set fan speed message
     # maximum  "xxx xxx xxx xxx "
-    send   "LN1=CPU Core Temps: "
+    send "LN1=CPU:    MB:"
 
-    core1=$(get_cpucoretemp $((1-1)))"C"
-	core2=$(get_cpucoretemp $((2-1)))"C"
-	core3=$(get_cpucoretemp $((3-1)))"C"
-	core4=$(get_cpucoretemp $((4-1)))"C"
-	
-	temps="$core1 $core2 $core3 $core4"
+    core1=$(get_cpucoretemp $((1-1)))
+    core2=$(get_cpucoretemp $((2-1)))
+    core3=$(get_cpucoretemp $((3-1)))
+    core4=$(get_cpucoretemp $((4-1)))
+    
+    cpu_temp=$(($core1 + $core2 + $core3 + $core4))"°C"
+    mb_temp=$(get_mainboardtemp)"°C"
 
-    send   "LN2=$temps"
+    send "LN2=$cpu_temp    $mb_temp"
 }
 
 show_ip() {
-    send "LN1=Interface br$1"
-    ip=$(ifconfig br$1 | grep inet | awk '{printf $2}')
-    send "LN2=$ip"
+    send "LN1=Interface $1"
+    ip=$(ifconfig $1 | grep inet | awk '{printf $2}')
+    
+    if [ "$ip" == "" ]; then
+        send "LN2=Not connected"
+    else
+        send "LN2=$ip"
+    fi
 }
 
 check_btn_pressed() {
     btn=$(get_pmc ISR) 
-    #echo "Btn is .$btn."
     
     case $btn in
     20*)
-        echo "Button up pressed!"
-        menu=$(( ($menu + 1) % 4 ))
+        vprint "Button up pressed!"
+        menu=$(( ($menu + 1) % 6 ))
         ;;
     40*) 
-        echo "Button down pressed!"
-        menu=$(( ($menu + 2) % 4 ))
+        vprint "Button down pressed!"
+        menu=$(( ($menu + 2) % 6 ))
         ;;
     *)
         return    
@@ -398,20 +415,26 @@ check_btn_pressed() {
         show_welcome
         ;;
     1)
-        show_ip 0
+        show_ip "br0"
         ;;
     2)
+        show_ip "eth0"
+        ;;
+    3)
+        show_ip "eth1"
+        ;;
+    4)
         show_fan_speed
         ;;
-	3)
-        show_cpu_temps
-        ;;		
-    # if you add menu items here, update mod 3 uses above    
-    esac        
+    5)
+        show_sys_temp
+        ;;
+    # if you add menu items here, update mod 6 uses above    
+    esac
 }
 
 set_pwr_led(){
-    #echo "PowerMode:$1 - PowerColor:$2 - UsbMode:$3 - UsbColor$4"
+    #vprint "PowerMode:$1 - PowerColor:$2 - UsbMode:$3 - UsbColor$4"
     if [ "$1" == SOLID ]; then
         send BLK=00
         send PLS=00
@@ -455,7 +478,7 @@ set_pwr_led(){
         send PLS=01
         send LED=00
         send BLK=00
-    fi  
+    fi
 }
 
 init() {
@@ -464,29 +487,34 @@ init() {
     setup_tty
     setup_i2c
 
-    echo "# GETINFO: Getting system status and firmware! *"
+    echo "# GETINFO: Getting system status and firmware! #"
     send VER
-    send CFG 
+    send CFG
     send STA
     
     show_welcome
     set_pwr_led SOLID BLU
-    printf "# INIT DONE # \n\n"
+    echo "# INIT DONE #"
 }
 
 ######################
 #        MAIN        #
 ######################
+
+if [ "$1" = "-v" ]; then
+    hwVerbose=1
+fi
+
 init
 
 while true; do
     # adjust fan speed every 30 seconds
     monitor
-    echo "Next temp update in $updateRate seconds"
+    vprint "Next temp update in $updateRate seconds"
 
     # check for button presses
     for i in $(seq $updateRate); do 
-        sleep 1
+        sleep 0.25
         check_btn_pressed
     done
 done
