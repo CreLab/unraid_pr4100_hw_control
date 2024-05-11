@@ -13,7 +13,8 @@ For full use after reboot use the following install script:
 
      ```
      $ git clone https://github.com/CreLab/unraid_pr4100_hw_control.git
-	 $ sh unraid_pr4100_hw_control/install.sh
+	 $ cd ./unraid_pr4100_hw_control
+	 $ sh install.sh
      ```
 
 **Usage**:
