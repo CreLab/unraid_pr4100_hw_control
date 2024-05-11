@@ -1,11 +1,12 @@
 #!/bin/bash
 #
-# Post-init script for FreeNAS on Western Digital PR2100/PR4100 
-# wdhws v1.0 by TFL
+# Post-init script for Unraid on Western Digital PR4100
+# based on wdhws v1.0 by TFL
+#
+# ported to unraid by CreLab
 # 
 # BSD 3 LICENSE
 #
-# thanks unix stackexchange question 231975
 
 setup_tty() {
     com=$(dmesg | grep tty | grep 1e.4 | cut -d' ' -f7)

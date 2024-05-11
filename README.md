@@ -1,2 +1,28 @@
-# unraid_pr4100_fan_control
-Unraid fan and lcd display control for WD PR4100 
+# unraid_pr4100_hw_control
+
+Unraid PR4100 hardware control gives you full access to LCD, button and fan control for WD My Cloud PR4100.
+
+This script is based on https://github.com/Coltonton/WD-PR4100-FreeNAS-Control.
+
+**Project Description**:
+
+This script is pre-configured and should run on PR4100 and PR2100. If not, please create an issue ticket.
+
+**Installation**:
+For full use after reboot use the following install script:
+
+     ```
+     $ git clone https://github.com/CreLab/unraid_pr4100_hw_control.git
+	 $ sh unraid_pr4100_hw_control/install.sh
+     ```
+
+**Usage**:
+For testing only use this command:
+
+     ```
+     $ sh ./hw_control.sh &
+     ```
+
+**License**:
+
+This project is licensed under the BSD 3-Clause License by TFL.
