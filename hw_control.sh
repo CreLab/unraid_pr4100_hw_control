@@ -184,8 +184,8 @@ send() {                # Requires input - UART send function to send commands t
     if [ ! -z $2 ]; then 
         echo "CMD $1 gives '$ans' at $2" >&2 
     fi 
- 	echo $ans
- 	
+     echo $ans
+     
     send_empty
     # deconstruct tty file pointers, otherwise this script breaks on sleep 
     exec 4<&- 5>&-
@@ -256,7 +256,7 @@ monitor() {             # TODO / Comment
         if [ "$rpmdec" -lt 400 ]; then
             echo " WARNING: FAN speed low - current RPM $rpm - check fan or clean dust!"
             set_pwr_led FLASH RED
-		fi
+        fi
     fi
     
     # Check the Temperature of the PMC and convert to hex 
@@ -405,7 +405,7 @@ show_ip() {
 check_btn_pressed() {
     btn=$(get_pmc ISR) 
     mod=6
-	
+    
     case $btn in
     20*)
         vprint "Button up pressed!"
@@ -423,12 +423,12 @@ check_btn_pressed() {
     0)
         show_welcome
         ;;
-	1)
+    1)
         show_fan_speed
         ;;
     2)
         show_sys_temp
-		;;
+        ;;
     3)
         show_ip "br0"
         ;;

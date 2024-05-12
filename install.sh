@@ -11,8 +11,8 @@ tmp=$(ls /boot/config/ | grep go.bak)
 if [[ "$tmp" == "" ]]; then
     cp /boot/config/go /boot/config/go.bak
 else
-	rm /boot/config/go
-	cp /boot/config/go.bak /boot/config/go
+    rm /boot/config/go
+    cp /boot/config/go.bak /boot/config/go
 fi
 
 echo "cp /boot/config/plugins/PR4100_Ctrl/hw_control-x86_64-CreLab.sh /usr/adm/scripts/" >> /boot/config/go
