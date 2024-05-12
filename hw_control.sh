@@ -52,6 +52,7 @@ hwOverTempAlarm=0
 hwOverTempArray=()
 hwVerbose=0
 hwI2cSupport=0
+hwMenu=0
 
 ###########################################################################
 #############################   FUNCS   ###################################
@@ -166,6 +167,7 @@ send() {                # Requires input - UART send function to send commands t
     # send a command to the PMC module and echo the answer
     echo -ne "$1\r" >&5
     read ans <&4
+    
     if [ "$ans" = "ALERT" ]; then
         echo -ne ALERT >&2
         exit 2 
@@ -182,11 +184,11 @@ send() {                # Requires input - UART send function to send commands t
     if [ ! -z $2 ]; then 
         echo "CMD $1 gives '$ans' at $2" >&2 
     fi 
-    
+ 	echo $ans
+ 	
     send_empty
     # deconstruct tty file pointers, otherwise this script breaks on sleep 
     exec 4<&- 5>&-
-
 }
 
 send_empty() {          # i2c send blank to clear front panel input
@@ -240,23 +242,25 @@ get_ramtemp() {
     # get the memory temperature from the I2C sensor
     if [ $hwI2cSupport == 1 ]; then
         # smbmsg -s 0x98 -c 0x0$1 -i 1 -F %d
-	#else
+    #else
         echo "0"
     fi
 }
 
 monitor() {             # TODO / Comment
     # check RPM (fan may get stuck) and convert hex to dec
-    #readfanpercent=$(get_pmc FAN)
-    rpm=$((0x$(get_pmc RPM)))
-    vprint "FAN Speed: $rpm"
-	if [ "$rpm" -lt 400 ]; then
-		echo " WARNING: FAN speed low - current RPM $rpm - check fan or clean dust!"
-		set_pwr_led FLASH RED
-	fi
+    rpmhex=$(get_pmc RPM)
+    rpmdec=$((0x$rpmhex))
+    echo "FAN 0 RPM: $rpmdec"
+    if [ "$rpmdec" != ERR ]; then
+        if [ "$rpmdec" -lt 400 ]; then
+            echo " WARNING: FAN speed low - current RPM $rpm - check fan or clean dust!"
+            set_pwr_led FLASH RED
+		fi
+    fi
     
     # Check the Temperature of the PMC and convert to hex 
-	tmp=$((0x$(get_pmc TMP)))
+    tmp=$((0x$(get_pmc TMP)))
     if [ "$tmp" -gt $pmcMaxTemp ]; then
         echo " WARNING: PMC surpassed maximum ($pmcMaxTemp°C), full throttle activated!"
         hwOverTempAlarm=1 
@@ -319,18 +323,18 @@ monitor() {             # TODO / Comment
     fi
  
     # Check the installed RAM Temperature
-	if [ $hwI2cSupport == 1 ]; then
-		vprint "|------ RAM TEMPS -------"
-		for i in 0 1; do
-			tmp=$(get_ramtemp $i)
-			vprint "| RAM$i is $tmp °C"
-			if [ "$tmp" -gt $ramMaxTemp ]; then
-				echo " WARNING: RAM$i surpassed maximum ($ramMaxTemp°C), full throttle activated!"
-				#hwOverTempArray+=("RAM $tmp°C/$ramMaxTemp°C")
-				hwOverTempAlarm=1
-			fi
-		done
-	fi
+    if [ $hwI2cSupport == 1 ]; then
+        vprint "|------ RAM TEMPS -------"
+        for i in 0 1; do
+            tmp=$(get_ramtemp $i)
+            vprint "| RAM$i is $tmp °C"
+            if [ "$tmp" -gt $ramMaxTemp ]; then
+                echo " WARNING: RAM$i surpassed maximum ($ramMaxTemp°C), full throttle activated!"
+                #hwOverTempArray+=("RAM $tmp°C/$ramMaxTemp°C")
+                hwOverTempAlarm=1
+            fi
+        done
+    fi
     vprint "|------------------------"
 
     if [ ${#hwOverTempArray[@]} -gt 0 ] || [ $hwOverTempAlarm == 1 ]; then
@@ -353,83 +357,88 @@ monitor() {             # TODO / Comment
 show_welcome() {
     # set welcome message
     # maximum  "xxx xxx xxx xxx "
-    send "LN1=     UNRAID "
-    send "LN2=WD PR4100 Server"
+    send   "LN1=     UNRAID     "
+    send   "LN2=WD PR4100 Server"
 }
 
 show_fan_speed() {
     # set fan speed message
     # maximum  "xxx xxx xxx xxx "
-    send "LN1=Fan Speed:  "
+    send   "LN1=Fan Speed:      "
 
-    rpm=$((0x$(get_pmc RPM)))"rpm"
+    rpm=$((0x$(get_pmc RPM)))
 
-    send "LN2=$rpm"
+    send   "LN2=$rpm"
 }
 
 show_sys_temp() {
     # set fan speed message
     # maximum  "xxx xxx xxx xxx "
-    send "LN1=CPU:    MB:"
+    send   "LN1=Temperature:    "
 
     core1=$(get_cpucoretemp $((1-1)))
     core2=$(get_cpucoretemp $((2-1)))
     core3=$(get_cpucoretemp $((3-1)))
     core4=$(get_cpucoretemp $((4-1)))
     
-    cpu_temp=$(($core1 + $core2 + $core3 + $core4))"°C"
-    mb_temp=$(get_mainboardtemp)"°C"
+    core_sum=$(($core1 + $core2 + $core3 + $core4))
+    cpu_temp=$(($core_sum / 4))"C"
+    
+    mb_temp=$(get_mainboardtemp)"C"
 
-    send "LN2=$cpu_temp    $mb_temp"
+    send   "LN2=CPU $cpu_temp MB $mb_temp"
 }
 
 show_ip() {
-    send "LN1=Interface $1"
+    # set ip message
+    # maximum  "xxx xxx xxx xxx "
+    send   "LN1=Interface $1"
     ip=$(ifconfig $1 | grep inet | awk '{printf $2}')
     
     if [ "$ip" == "" ]; then
-        send "LN2=Not connected"
+        send   "LN2=Not connected"
     else
-        send "LN2=$ip"
+        send   "LN2=$ip"
     fi
 }
 
 check_btn_pressed() {
     btn=$(get_pmc ISR) 
-    
+    mod=6
+	
     case $btn in
     20*)
         vprint "Button up pressed!"
-        menu=$(( ($menu + 1) % 6 ))
+        hwMenu=$(( ($hwMenu + 1) % mod ))
         ;;
     40*) 
         vprint "Button down pressed!"
-        menu=$(( ($menu + 2) % 6 ))
+        hwMenu=$(( ($hwMenu + (mod - 1)) % mod ))
         ;;
     *)
         return    
     esac
     
-    case "$menu" in
+    case "$hwMenu" in
     0)
         show_welcome
         ;;
-    1)
-        show_ip "br0"
-        ;;
-    2)
-        show_ip "eth0"
-        ;;
-    3)
-        show_ip "eth1"
-        ;;
-    4)
+	1)
         show_fan_speed
         ;;
-    5)
+    2)
         show_sys_temp
+		;;
+    3)
+        show_ip "br0"
         ;;
-    # if you add menu items here, update mod 6 uses above    
+    4)
+        show_ip "eth0"
+        ;;
+    5)
+        show_ip "eth1"
+        ;;
+    # if you add hwMenu items here, update mod uses above    
     esac
 }
 
@@ -454,6 +463,7 @@ set_pwr_led(){
             send LED=07
         fi
     fi
+    
     if [ "$1" == FLASH ]; then
         send LED=00
         send PLS=00
