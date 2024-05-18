@@ -4,6 +4,9 @@ Unraid PR4100 hardware control gives you full access to LCD, button and fan cont
 
 This script is based on https://github.com/Coltonton/WD-PR4100-FreeNAS-Control.
 
+Here you can find all commands for the PR4100 controler:
+https://community.wd.com/t/my-cloud-os5-firmware-notes/286949
+
 **Project Description**:
 
 This script is pre-configured and should run on PR4100 and PR2100. If not, please create an issue ticket.
