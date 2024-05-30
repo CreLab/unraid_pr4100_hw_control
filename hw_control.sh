@@ -8,7 +8,7 @@
 #    - removed all not important features
 #    - create an install script
 #    - replaced all not functional commands for Unraid support
-#    - make the code more readable 
+#    - make the code more readable
 #
 # BSD 3 LICENSE (inherited from TFL)
 # Thanks unix stackexchange question 231975 & github user @stefaang
@@ -20,7 +20,7 @@
 # PowerLED-Pulse PLS=01        00-off 01-on (cant change color? is always blue?)
 # PowerLED-Blink BLK=01        (See LED Guide)
 # LCDBacklight   BKL=64        Enter Hex value 00-64 (0-100%)
-#                
+#
 
 ####     LED GUIDE      ####
 #XX-usb/pwr
@@ -77,7 +77,7 @@ check_for_dependencies(){   # Simple just-to-be-safe check that SMART Mon exists
         logprint " WARNING: lm-sensors not installed please run - sudo apt install smartmontools "
         (( depenflag+=2 ))
     fi
-    
+
     if [ $depenflag -gt 0 ]; then
         #printf "Would you like me to install? y/n:"
         #read resp
@@ -100,13 +100,13 @@ get_sys_info(){         # Get system info based off kernal, as BSD/LINUX has not
         Linux*)  hwSystem=Linux;;
         *)       hwSystem="Other"
     esac
-    
+
     if [[ ! $hwSystem =~ Linux ]]; then  # If system is not Linux or *BSD Show unsupported message
         logprint "Sorry, This software version for the WD PR4100 Hardware does not support $hwSystem platform."
         logprint "Please create an issue on Github to see about gettin support added"
         exit 1
-    fi     
-    
+    fi
+
     if [ $hwSystem == Linux ]; then      # If Linux Unraid
         logprint "# INFO: Detected Linux Kernel #"  # Show what kernal was identified
         hwTTY=/dev/ttyS2                           # Linux uses much cooler (telatype) /dev/hwTTYS2 for i2C comms to PR4100 front hardware
@@ -136,7 +136,7 @@ setup_i2c() {           # load kernel modules required for the temperature senso
     if [[ "$tmp" == "" ]]; then
         depenflag=1
     fi
-    
+
     if [ $depenflag -gt 0 ]; then
     #   echo "Install missing I2C driver!"
     #   wget https://packages.slackonly.com/pub/packages/14.2-x86_64/system/i2c-tools/i2c-tools-4.1-x86_64-1_slonly.txz
@@ -145,8 +145,8 @@ setup_i2c() {           # load kernel modules required for the temperature senso
     #   rm -rf ./install
     #   cp ./usr/lib64/libi2c.so.0.1.1 ./usr/lib64/libi2c.so.0
     #   rm ./usr/lib64/libi2c.so.0.1.1
-    #   cp -rf ./usr/* /usr/             
-    #   rm -rf ./usr        
+    #   cp -rf ./usr/* /usr/
+    #   rm -rf ./usr
     #   modprobe i2c-dev
     #   modprobe i2c-i801
     #   echo "I2C support successfully installed"
@@ -157,40 +157,48 @@ setup_i2c() {           # load kernel modules required for the temperature senso
 
 send_cmd() {
     declare -n result="$2"
-    
+
     setup_tty
     send "$1" 0 res
     send_empty
-    exec 4<&- 5>&-      # deconstruct tty file pointers, otherwise this script breaks on sleep 
-    
+    exec 4<&- 5>&-      # deconstruct tty file pointers, otherwise this script breaks on sleep
+
     result="$res"
 }
 
 send() {                # Requires input - UART send function to send commands to front panel
     declare -n result="$3"
-    
-    # send a command to the PMC module and echo the answer
-    echo -ne "$1\r" >&5
-	read ans <&4
-    
-    if [ "$ans" = "ALERT" ]; then
-        logprint "CMD $1 gives ALERT"
-        logprint "Terminate script"
-        exit 2 
-    else
-        # keep this for debugging failing commands
-        if [ "$ans" = "ERR" ] || [ "$ans" = "RR" ] || [ "$ans" = "R" ] || [ -z "$ans" ]; then
-            # logprint "CMD $1 gives $ans at $2"
-            send_empty
-            send "$1" $(($2 + 1)) ans
+
+    start=$EPOCHSECONDS
+    ans="ALERT"
+
+    while [ "$ans" = "ALERT" ]
+    do
+        sleep 0.050
+
+        # send a command to the PMC module and echo the answer
+        echo -ne "$1\r" >&5
+        read ans <&4
+
+        if (($EPOCHSECONDS - start > 5)); then
+            logprint "CMD $1 gives ALERT"
+            logprint "Terminate script"
+            exit 2
         fi
+    done
+
+    # keep this for debugging failing commands
+    if [ "$ans" = "ERR" ] || [ "$ans" = "RR" ] || [ "$ans" = "R" ] || [ -z "$ans" ]; then
+        # logprint "CMD $1 gives $ans at $2"
+        send_empty
+        send "$1" $(($2 + 1)) ans
     fi
-    
+
     # only echo the result for retries ($2 not empty)
-    #if [ $2 -gt 0 ]; then 
+    #if [ $2 -gt 0 ]; then
     #    logprint "CMD $1 gives $ans at $2"
     #fi
-    
+
     result="$ans"
 }
 
@@ -202,9 +210,9 @@ send_empty() {          # UART send blank to clear front panel input
 
 get_pmc() {             # Requires input - Get a value from the PMC ex. inputing RPM gets fan0's rpm
     declare -n result="$2"
-    
+
     send_cmd $1 res
-    
+
     result=$(echo $res | cut -d'=' -f2)
 }
 
@@ -214,7 +222,7 @@ get_disktemp() {        # Requires input - Get the disks temperature only if it 
     getstatus=$(echo $?)                                 # Get drive exit status
     if [ "$getstatus" == "0" ]; then  # If the status of the drive is active, get its temperature
         smartctl -n standby -A $drivesel | grep Temperature_Celsius | awk '{print $10}'
-    else  # If the status of the drive is not active, return the exit status of the drive. Maybe its asleep/standby                
+    else  # If the status of the drive is not active, return the exit status of the drive. Maybe its asleep/standby
         return $getstatus
     fi
 }
@@ -223,7 +231,7 @@ get_cpucoretemp() {
     # get the CPU temperature and strip of the Celsius
     if [ $hwSystem == Linux ]; then
         temp=$(sensors | grep "Core $1")
-        
+
         if [ "$temp" == "" ]; then
             sensors | grep "CPU Temp" | awk '{print $3}' | cut -d'.' -f1 | cut -b 2-3
         else
@@ -236,7 +244,7 @@ get_mainboardtemp() {
     # get the mainbaord temperature and strip of the Celsius
     if [ $hwSystem == Linux ]; then
         temp=$(sensors | grep "temp1")
-        
+
         if [ "$temp" == "" ]; then
             sensors | grep "MB Temp" | awk '{print $3}' | cut -d'.' -f1 | cut -b 2-3
         else
@@ -257,7 +265,7 @@ get_ramtemp() {
 monitor() {             # TODO / Comment
     # check RPM (fan may get stuck) and convert to dec
     get_pmc RPM rpm
-    if [ "$rpm" != "ERR" ]; then
+    if [ "$rpm" != "ERR" ] && [ "$rpm" != "ACK" ]; then
         rpmdec=$((0x$rpm))
         if [ "$rpmdec" -lt 400 ]; then
             logprint " WARNING: FAN speed low - current RPM $rpmdec - check fan or clean dust!"
@@ -266,14 +274,14 @@ monitor() {             # TODO / Comment
     else
         logprint " WARNING: PMC RPM return value is $rpm"
     fi
-    
+
     # Check the Temperature of the PMC and convert to dec
     get_pmc TMP tmp
     if [ "$tmp" != "ERR" ]; then
         tmpdec=$((0x$tmp))
         if [ "$tmpdec" -gt $pmcMaxTemp ]; then
             logprint " WARNING: PMC surpassed maximum ($pmcMaxTemp°C), full throttle activated!"
-            hwOverTempAlarm=1 
+            hwOverTempAlarm=1
         fi
     else
         logprint " WARNING: PMC TMP return value is $tmp"
@@ -294,7 +302,7 @@ monitor() {             # TODO / Comment
         else
             vprint "| Drive ${i:5:15} is $tmp °C"
             if [ ! -z $tmp ] && [ $tmp -gt $diskMaxTemp ]; then
-                logprint " WARNING: Disk$i surpassed maximum ($diskMaxTemp°C), full throttle activated!" 
+                logprint " WARNING: Disk$i surpassed maximum ($diskMaxTemp°C), full throttle activated!"
                 hwOverTempAlarm=1
             fi
         fi
@@ -314,14 +322,14 @@ monitor() {             # TODO / Comment
             highestcpucoretemp=$tmp
         fi
     done
-    
+
     vprint "| Highest CPU core temp is $highestcpucoretemp °C"
-    
+
     #                                                       max-opperating=a   fullfan-minfan=b    b/a= fan percent per degree
     #Max-80 Optimal-35 1.5% = for every degree above 30%      80-35=45         100-30=70             70/45=1.5
-    newtmp=$(("$highestcpucoretemp"-"$cpuOptimalTemp"))  #MaxTemp 
+    newtmp=$(("$highestcpucoretemp"-"$cpuOptimalTemp"))  #MaxTemp
     setspeed=$(("$newtmp"*2+"$fanSpeedMinimum"-5))
-    
+
     # Check the Temperature of the mainbaord
     vprint "|---- MAINBOARD TEMP ----"
     tmp=$(get_mainboardtemp)
@@ -330,7 +338,7 @@ monitor() {             # TODO / Comment
         logprint " WARNING: MB temp surpassed maximum ($mbMaxTemp°C), full throttle activated!"
         hwOverTempAlarm=1
     fi
- 
+
     # Check the installed RAM Temperature
     if [ $hwI2cSupport == 1 ]; then
         vprint "|------ RAM TEMPS -------"
@@ -362,95 +370,138 @@ monitor() {             # TODO / Comment
     fi
 }
 
-show_welcome() {
-    # set welcome message
+show_name() {
+    # set name message
     # maximum  "xxx xxx xxx xxx "
-    send_cmd   "LN1=     UNRAID     " res
-    send_cmd   "LN2=WD PR4100 Server" res
+    send_cmd   "LN1=NAME:           " res
+
+    name=$(hostname)
+    send_cmd   "LN2=$name" res
 }
 
 show_fan_speed() {
     # set fan speed message
     # maximum  "xxx xxx xxx xxx "
     send_cmd   "LN1=Fan Speed:      " res
-        
+
     get_pmc RPM rpm
     if [ "$rpm" != ERR ]; then
-        rpmdec=$((0x$rpm))
+        rpmdec=$((0x$rpm))"rpm"
     else
         rpmdec=""
     fi
-    
+
     send_cmd   "LN2=$rpmdec" res
 }
 
 show_sys_temp() {
     # set sys temperature message
     # maximum  "xxx xxx xxx xxx "
-    send_cmd   "LN1=Temperature:    " res
+    version=$(cat /var/log/syslog | grep "System Management Utility version" | awk '{printf $11}')
+    send_cmd   "LN1=Ver.: $version" res
 
     core1=$(get_cpucoretemp $((1-1)))
     core2=$(get_cpucoretemp $((2-1)))
     core3=$(get_cpucoretemp $((3-1)))
     core4=$(get_cpucoretemp $((4-1)))
-    
+
     core_sum=$(($core1 + $core2 + $core3 + $core4))
     cpu_temp=$(($core_sum / 4))"C"
-    
+
     mb_temp=$(get_mainboardtemp)"C"
 
-    send_cmd   "LN2=CPU $cpu_temp MB $mb_temp" res
+    send_cmd   "LN2=Temp: $cpu_temp $mb_temp" res
 }
 
 show_ip() {
     # set ip message
     # maximum  "xxx xxx xxx xxx "
-    send_cmd   "LN1=Interface $1" res
+    send_cmd   "LN1=IP Address $1:" res
     ip=$(ifconfig $1 | grep inet | awk '{printf $2}')
-    
+
     if [ "$ip" == "" ]; then
-        send_cmd   "LN2=Disabled" res
+        send_cmd   "LN2=Disabled        " res
     else
         send_cmd   "LN2=$ip" res
     fi
 }
 
+show_drive_status() {
+    # set drive status message
+    # maximum  "xxx xxx xxx xxx "
+    send_cmd   "LN1=Drive Status:   " res
+
+    state_disk1=$(smartctl -a /dev/sdb | grep "SMART overall-health" | awk '{printf $6}')
+    state_disk2=$(smartctl -a /dev/sdc | grep "SMART overall-health" | awk '{printf $6}')
+    state_disk3=$(smartctl -a /dev/sdd | grep "SMART overall-health" | awk '{printf $6}')
+    state_disk4=$(smartctl -a /dev/sde | grep "SMART overall-health" | awk '{printf $6}')
+
+    if [ "$state_disk1" == "PASSED" ] && [ "$state_disk2" == "PASSED" ] && [ "$state_disk3" == "PASSED" ] && [ "$state_disk4" == "PASSED" ]; then
+        send_cmd   "LN2=Healthy         " res
+    else
+        send_cmd   "LN2=Unhealthy       " res
+    fi
+}
+
+show_capacity() {
+    # set capacity message
+    # maximum  "xxx xxx xxx xxx "
+    send_cmd   "LN1=Capacity:       " res
+    fsState=$(cat /var/local/emhttp/var.ini | grep fsState | sed 's/"/ /g' | awk '{printf $2}')
+
+    if [ "$fsState" == "Stopped" ]; then
+        send_cmd   "LN2=Array Stopped   " res
+    else
+        cap=$(df -H | grep "/mnt/user0" | awk '{printf $4}')"B"
+        send_cmd   "LN2=$cap free       " res
+    fi
+}
+
 check_btn_pressed() {
     get_pmc ISR btn
-    mod=6
-    
+    mod=8
+
     case $btn in
-    20*)
-        vprint "Button up pressed!"
+    40*)
+        vprint "Button down pressed!"
         hwMenu=$(( ($hwMenu + 1) % mod ))
         ;;
-    40*) 
-        vprint "Button down pressed!"
+    20*)
+        vprint "Button up pressed!"
         hwMenu=$(( ($hwMenu + (mod - 1)) % mod ))
         ;;
     *)
-        return    
+        return
     esac
-    
+
     case "$hwMenu" in
     0)
-        show_welcome
+        show_name
         ;;
     1)
-        show_fan_speed
-        ;;
-    2)
-        show_sys_temp
-        ;;
-    3)
         show_ip "br0"
         ;;
-    4)
+    2)
         show_ip "eth0"
         ;;
-    5)
+    3)
         show_ip "eth1"
-        ;;   
+        ;;
+    4)
+        show_sys_temp
+        ;;
+    5)
+        show_fan_speed
+        ;;
+    6)
+        show_drive_status
+        ;;
+    7)
+        show_capacity
+        ;;
+    *)
+        vprint "Unknown Menu id $hwMenu!"
+        ;;
     esac
 }
 
@@ -475,7 +526,7 @@ set_pwr_led(){
             send_cmd LED=07 res
         fi
     fi
-    
+
     if [ "$1" == FLASH ]; then
         send_cmd LED=00 res
         send_cmd PLS=00 res
@@ -516,8 +567,8 @@ init() {
     logprint "$res"
     send_cmd "STA" res
     logprint "$res"
-    
-    show_welcome
+
+    show_name
     set_pwr_led SOLID BLU
     logprint "# INIT DONE #"
 }
@@ -535,7 +586,7 @@ while true; do
     vprint "Next temp update in $updateRate seconds"
 
     # check for button presses
-    for i in $(seq $updateRate); do 
+    for i in $(seq $updateRate); do
         sleep 0.5
         check_btn_pressed
     done
