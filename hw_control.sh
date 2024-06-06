@@ -114,31 +114,22 @@ send()
 {
     declare -n result="$3"
 
-    start=$EPOCHSECONDS
-    ans="ALERT"
-
-    while [ "$ans" = "ALERT" ]
-    do
-        sleep 0.050
-
-        # send a command to the PMC module and echo the answer
-        setup_tty
-        echo -ne "$1\r" >&5
-        read ans <&4
-
-        if (($EPOCHSECONDS - start > 5)); then
-            logprint "CMD $1 gives ALERT"
-            logprint "Terminate script"
-            exit 2
-        fi
-    done
+	# send a command to the PMC module and echo the answer
+	# setup_tty
+	echo -ne "$1\r" >&5
+	
+	sleep 0.050
+	
+	read ans <&4
 
     # keep this for debugging failing commands
     if [ "$ans" = "ERR" ] || [ "$ans" = "RR" ] || [ "$ans" = "R" ] || [ -z "$ans" ]; then
-        # logprint "CMD $1 gives $ans at $2"
+        vprint "CMD $1 gives $ans at $2"
         send_empty
         send "$1" $(($2 + 1)) ans
     fi
+	
+	# vprint "CMD $1 gives $ans"
 
     result="$ans"
 }
@@ -197,6 +188,7 @@ get_mainboardtemp()
 monitor()
 {
     get_pmc RPM rpm
+	vprint "| RPM is $rpm"
     if [ "$rpm" != "ERR" ] && [ "$rpm" != "ACK" ]; then
         rpmdec=$((0x$rpm))
         if [ "$rpmdec" -lt 400 ]; then
@@ -208,6 +200,7 @@ monitor()
     fi
 
     get_pmc TMP tmp
+	vprint "| TMP is $tmp"
     if [ "$tmp" != "ERR" ]; then
         tmpdec=$((0x$tmp))
         if [ "$tmpdec" -gt $pmcMaxTemp ]; then
@@ -274,7 +267,7 @@ monitor()
 
     if [ $hwOverTempAlarm == 1 ]; then
         logprint " WARNING: SYSTEM OVER LIMIT TEMPERATURE(s) FAN SET TO 100% "
-        hwOverTempAlarm=1
+        hwOverTempAlarm=0
         hwLastOverTemp=$(date)
         send_cmd FAN=64 res
         set_pwr_led FLASH RED
@@ -282,10 +275,10 @@ monitor()
         if [ $setspeed -lt $fanSpeedMinimum ]; then
             vprint "Calculated fan speed below minimum allowed, bumping to $fanSpeedMinimum%..."
             setspeed=$fanSpeedMinimum
-        else
-            vprint "Setting fan speed to: $setspeed%"
-            send_cmd FAN=$setspeed res
         fi
+		
+		vprint "Setting fan speed to: $setspeed%"
+		send_cmd FAN=$setspeed res
     fi
 }
 
