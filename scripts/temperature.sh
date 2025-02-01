@@ -28,11 +28,12 @@ init_linux_drivers()
     for file in /dev/disk/by-id/ata*
     do
         if [[ $file != *"-part"* ]]; then
-            tmparr+=( $( ls -l "/dev/disk/by-id/ata-${file:20:100}" | awk '{print $11}' | cut -b 7-10 )  )
+            tmparr+=( $( ls -l "/dev/disk/by-id/ata-${file:20:100}" | awk '{print $11}' | cut -b 7-10 ) )
             readarray -t hwHDDArray < <(for a in "${tmparr[@]}"; do echo "/dev/$a"; done | sort)
         fi
     done
-    verbose "# INFO: Detected internal bay drives: ${hwHDDArray[@]} #"
+    echo "${hwHDDArray[@]}"
+    verbose "INFO: Detected internal bay drives: ${hwHDDArray[@]}"
 }
 
 ####        Function         ####

@@ -23,7 +23,6 @@ source ./scripts/led.sh
 
 ####      Global Defines     ####
 
-updateRate=25            # How often in seconds to update temps
 hwMenu=0
 
 ####        Init Function        ####
@@ -54,11 +53,11 @@ get_sys_info()
     esac
 
     if [ $hwSystem == Linux ]; then
-        verbose "# INFO: Detected Linux Kernel #"
+        verbose " INFO: Detected Linux Kernel "
         init_linux_drivers
     else    
-        verbose "Sorry, This software version for the WD PR4100 Hardware does not support $hwSystem platform."
-        verbose "Please create an issue on Github to see about gettin support added"
+        verbose " Sorry, This software version for the WD PR4100 Hardware does not support $hwSystem platform."
+        verbose " Please create an issue on Github to see about gettin support added"
         exit 1
     fi
 }
@@ -69,15 +68,13 @@ check_btn_pressed() {
     read_serial "ISR" btn
     mod=8
 
-    verbose "Button $btn"
-
     case $btn in
     40*)
-        verbose "Button down pressed!"
+        verbose " Button down pressed!"
         hwMenu=$(( ($hwMenu + 1) % mod ))
         ;;
     20*)
-        verbose "Button up pressed!"
+        verbose " Button up pressed!"
         hwMenu=$(( ($hwMenu + (mod - 1)) % mod ))
         ;;
     *)
@@ -121,13 +118,13 @@ set_verbose $1
 check_for_dependencies
 get_sys_info
 
-verbose "# INFO: Getting system status and firmware version! #"
+verbose " INFO: Getting system status and firmware version!"
 read_serial "VER" res
-verbose "$res"
+verbose "VER=$res"
 read_serial "CFG" res
-verbose "$res"
+verbose "CFG=$res"
 read_serial "STA" res
-verbose "$res"
+verbose "STA=$res"
 
 show_name
 set_pwr_led SOLID BLU
@@ -135,10 +132,9 @@ verbose "# INIT DONE #"
 
 while true; do
     monitor
-    verbose "Next temp update in $updateRate seconds"
 
-    for i in $(seq $updateRate); do
-        sleep 0.5
+    for i in $(seq 100); do
+        sleep 0.100
         check_btn_pressed
     done
 done

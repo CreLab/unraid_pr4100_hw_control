@@ -43,7 +43,7 @@ write_serial()
 
     open_serial
 
-    echo "$cmd\r" >&5
+    echo "$cmd" >&5
     read -r -n 20 res <&4
 
     close_serial
