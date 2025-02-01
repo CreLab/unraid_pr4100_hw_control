@@ -32,7 +32,6 @@ init_linux_drivers()
             readarray -t hwHDDArray < <(for a in "${tmparr[@]}"; do echo "/dev/$a"; done | sort)
         fi
     done
-    echo "${hwHDDArray[@]}"
     verbose "INFO: Detected internal bay drives: ${hwHDDArray[@]}"
 }
 
