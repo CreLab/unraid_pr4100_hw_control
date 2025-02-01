@@ -66,7 +66,7 @@ get_sys_info()
 ####        Interrupt Function        ####
 
 check_btn_pressed() {
-    raed_serial "ISR" btn
+    read_serial "ISR" btn
     mod=8
 
     verbose "Button $btn"

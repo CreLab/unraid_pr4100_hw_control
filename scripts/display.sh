@@ -2,8 +2,8 @@
 
 ####         Includes        ####
 
-source ./debug.sh
-source ./serial.sh
+source ./scripts/debug.sh
+source ./scripts/serial.sh
 
 ####      Global Defines     ####
 

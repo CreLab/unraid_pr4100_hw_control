@@ -23,28 +23,30 @@ close_serial()
 
 read_serial()
 {
+    local cmd=$1
     declare -n result="$2"
 
-    open_serial()
+    open_serial
 
-	echo "$1" >&5
-	read -r -n 20 res <&4
+    echo "$cmd" >&5
+    read -r -n 20 res <&4
 
-    close_serial()
+    close_serial
 
-    result="$res"
+    result=$(echo $res | cut -d'=' -f2)
 }
 
 write_serial()
 {
+    local cmd=$1
     declare -n result="$2"
 
-    open_serial()
+    open_serial
 
-	echo "$1\n" >&5
-	read -r -n 20 res <&4
+    echo "$cmd\r" >&5
+    read -r -n 20 res <&4
 
-    close_serial()
+    close_serial
 
-	result=$(echo $res | cut -d'=' -f2)
+    result=$res
 }
