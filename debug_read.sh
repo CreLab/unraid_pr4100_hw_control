@@ -14,5 +14,5 @@ source ./scripts/serial.sh
 ####       Main Function     ####
 
 set_verbose "-v"
-raed_serial $1 ret
+read_serial $1 ret
 verbose $ret
