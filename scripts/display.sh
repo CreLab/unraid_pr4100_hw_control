@@ -25,7 +25,7 @@ show_fan_speed()
     else
         rpmdec=""
     fi
-	
+    
     write_serial   "LN1=Fan Speed:      " res
     write_serial   "LN2=$rpmdec" res
 }

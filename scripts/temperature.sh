@@ -78,7 +78,7 @@ get_mainboardtemp()
 monitor()
 {
     read_serial "RPM" rpm
-	verbose "| RPM is $rpm"
+    verbose "| RPM is $rpm"
     if [ "$rpm" != "ERR" ] && [ "$rpm" != "ACK" ]; then
         rpmdec=$((0x$rpm))
         if [ "$rpmdec" -lt 400 ]; then
@@ -90,7 +90,7 @@ monitor()
     fi
 
     read_serial "TMP" tmp
-	verbose "| TMP is $tmp"
+    verbose "| TMP is $tmp"
     if [ "$tmp" != "ERR" ]; then
         tmpdec=$((0x$tmp))
         if [ "$tmpdec" -gt $pmcMaxTemp ]; then
@@ -123,22 +123,22 @@ monitor()
 
     highestcpucoretemp=0
     verbose "|---- CPU CORE TEMPS ----"
-	
-	core1=$(get_cpucoretemp $((1-1)))
+    
+    core1=$(get_cpucoretemp $((1-1)))
     core2=$(get_cpucoretemp $((2-1)))
     core3=$(get_cpucoretemp $((3-1)))
     core4=$(get_cpucoretemp $((4-1)))
 
     core_sum=$(($core1 + $core2 + $core3 + $core4))
     tmp=$(($core_sum / 4))
-	verbose "| CPU is $tmp °C"
-	if [ $tmp -gt $cpuMaxTemp ]; then
-		verbose " WARNING: CPU surpassed maximum ($cpuMaxTemp°C), full throttle activated!"
-		hwOverTempAlarm=1
-	fi
-	if [ $tmp -gt $highestcpucoretemp ]; then
-		highestcpucoretemp=$tmp
-	fi
+    verbose "| CPU is $tmp °C"
+    if [ $tmp -gt $cpuMaxTemp ]; then
+        verbose " WARNING: CPU surpassed maximum ($cpuMaxTemp°C), full throttle activated!"
+        hwOverTempAlarm=1
+    fi
+    if [ $tmp -gt $highestcpucoretemp ]; then
+        highestcpucoretemp=$tmp
+    fi
 
     verbose "| Highest CPU core temp is $highestcpucoretemp °C"
 
@@ -166,8 +166,8 @@ monitor()
             verbose "Calculated fan speed below minimum allowed, bumping to $fanSpeedMinimum%..."
             setspeed=$fanSpeedMinimum
         fi
-		
-		verbose "Setting fan speed to: $setspeed%"
-		write_serial "FAN=$setspeed" res
+        
+        verbose "Setting fan speed to: $setspeed%"
+        write_serial "FAN=$setspeed" res
     fi
 }

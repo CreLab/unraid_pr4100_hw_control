@@ -8,11 +8,11 @@ hwVerbose=0
 
 set_verbose()
 {
-	if [ "$1" = "-v" ]; then
-		hwVerbose=1
-	else
-	    hwVerbose=0
-	fi
+    if [ "$1" = "-v" ]; then
+        hwVerbose=1
+    else
+        hwVerbose=0
+    fi
 }
 
 verbose()

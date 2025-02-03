@@ -76,15 +76,15 @@ check_btn_pressed()
     40*)
         verbose "Button down pressed!"
         hwDisplayMenu=$(( ($hwDisplayMenu + 1) % $hwDisplayEntries ))
-		displayUpdate=1
+        displayUpdate=1
         ;;
     20*)
         verbose "Button up pressed!"
         hwDisplayMenu=$(( ($hwDisplayMenu + ($hwDisplayEntries - 1)) % $hwDisplayEntries ))
-		displayUpdate=1
+        displayUpdate=1
         ;;
     *)
-	    displayUpdate=0
+        displayUpdate=0
         return
     esac
 }
@@ -109,47 +109,47 @@ verbose "# INIT DONE #"
 
 while true; do
     monitor
-	
-	for i in $(seq $updateRateMax); do
+    
+    for i in $(seq $updateRateMax); do
         sleep 0.100
         check_btn_pressed
-		
-		updateRate=$updateRate-1
+        
+        updateRate=$updateRate-1
     done
-		
-	if [ $displayUpdate == 1 ] || [$updateRate == 0]; then
-	
-     	displayUpdate=0
-		updateRate=$updateRateMax
+        
+    if [ $displayUpdate == 1 ] || [$updateRate == 0]; then
+    
+        displayUpdate=0
+        updateRate=$updateRateMax
 
-		case "$hwDisplayMenu" in
-		0)
-			show_name
-			;;
-		1)
-			show_ip "br0"
-			;;
-		2)
-			show_ip "eth0"
-			;;
-		3)
-			show_ip "eth1"
-			;;
-		4)
-			show_sys_temp
-			;;
-		5)
-			show_fan_speed
-			;;
-		6)
-			show_drive_status
-			;;
-		7)
-			show_capacity
-			;;
-		*)
-			verbose "Unknown Menu id $hwDisplayMenu!"
-			;;
-		esac
+        case "$hwDisplayMenu" in
+        0)
+            show_name
+            ;;
+        1)
+            show_ip "br0"
+            ;;
+        2)
+            show_ip "eth0"
+            ;;
+        3)
+            show_ip "eth1"
+            ;;
+        4)
+            show_sys_temp
+            ;;
+        5)
+            show_fan_speed
+            ;;
+        6)
+            show_drive_status
+            ;;
+        7)
+            show_capacity
+            ;;
+        *)
+            verbose "Unknown Menu id $hwDisplayMenu!"
+            ;;
+        esac
     fi
 done
