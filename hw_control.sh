@@ -23,7 +23,11 @@ source ./scripts/led.sh
 
 ####      Global Defines     ####
 
-hwMenu=0
+hwDisplayEntries=8
+hwDisplayMenu=0
+displayUpdate=0
+updateRate=0
+updateRateMax=100
 
 ####        Init Function        ####
 
@@ -64,51 +68,21 @@ get_sys_info()
 
 ####        Interrupt Function        ####
 
-check_btn_pressed() {
-    read_serial "ISR" btn
-    mod=8
+check_btn_pressed()
+{
+    raed_serial "ISR" btn
 
     case $btn in
     40*)
-        verbose " Button down pressed!"
-        hwMenu=$(( ($hwMenu + 1) % mod ))
+        verbose "Button down pressed!"
+        hwDisplayMenu=$(( ($hwDisplayMenu + 1) % $hwDisplayEntries ))
         ;;
     20*)
-        verbose " Button up pressed!"
-        hwMenu=$(( ($hwMenu + (mod - 1)) % mod ))
+        verbose "Button up pressed!"
+        hwDisplayMenu=$(( ($hwDisplayMenu + ($hwDisplayEntries - 1)) % $hwDisplayEntries ))
         ;;
     *)
         return
-    esac
-
-    case "$hwMenu" in
-    0)
-        show_name
-        ;;
-    1)
-        show_ip "br0"
-        ;;
-    2)
-        show_ip "eth0"
-        ;;
-    3)
-        show_ip "eth1"
-        ;;
-    4)
-        show_sys_temp
-        ;;
-    5)
-        show_fan_speed
-        ;;
-    6)
-        show_drive_status
-        ;;
-    7)
-        show_capacity
-        ;;
-    *)
-        verbose "Unknown Menu id $hwMenu!"
-        ;;
     esac
 }
 
@@ -133,8 +107,44 @@ verbose "# INIT DONE #"
 while true; do
     monitor
 
-    for i in $(seq 100); do
-        sleep 0.100
-        check_btn_pressed
-    done
+	sleep 0.1
+    check_btn_pressed
+		
+	if [ $displayUpdate == 1 ] || [$updateRate=0]; then
+	
+     	$displayUpdate=0
+		$updateRate=$updateRateMax
+	
+		case "$hwDisplayMenu" in
+		0)
+			show_name
+			;;
+		1)
+			show_ip "br0"
+			;;
+		2)
+			show_ip "eth0"
+			;;
+		3)
+			show_ip "eth1"
+			;;
+		4)
+			show_sys_temp
+			;;
+		5)
+			show_fan_speed
+			;;
+		6)
+			show_drive_status
+			;;
+		7)
+			show_capacity
+			;;
+		*)
+			verbose "Unknown Menu id $hwDisplayMenu!"
+			;;
+		esac
+    fi
+	
+	$updateRate=$updateRate-1
 done
