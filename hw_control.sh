@@ -104,9 +104,9 @@ show_name
 set_pwr_led SOLID BLU
 verbose "# INIT DONE #"
 
-while true; do
-    monitor
+monitor
 
+while true; do
 	sleep 0.1
     check_btn_pressed
 		
@@ -114,6 +114,8 @@ while true; do
 	
      	$displayUpdate=0
 		$updateRate=$updateRateMax
+	
+	    monitor
 	
 		case "$hwDisplayMenu" in
 		0)
