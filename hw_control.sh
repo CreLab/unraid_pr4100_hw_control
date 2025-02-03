@@ -76,12 +76,15 @@ check_btn_pressed()
     40*)
         verbose "Button down pressed!"
         hwDisplayMenu=$(( ($hwDisplayMenu + 1) % $hwDisplayEntries ))
+		displayUpdate=1
         ;;
     20*)
         verbose "Button up pressed!"
         hwDisplayMenu=$(( ($hwDisplayMenu + ($hwDisplayEntries - 1)) % $hwDisplayEntries ))
+		displayUpdate=1
         ;;
     *)
+	    displayUpdate=0
         return
     esac
 }
@@ -104,19 +107,21 @@ show_name
 set_pwr_led SOLID BLU
 verbose "# INIT DONE #"
 
-monitor
-
 while true; do
-	sleep 0.1
-    check_btn_pressed
+    monitor
+	
+	for i in $(seq $updateRateMax); do
+        sleep 0.100
+        check_btn_pressed
 		
-	if [ $displayUpdate == 1 ] || [$updateRate=0]; then
+		updateRate=$updateRate-1
+    done
+		
+	if [ $displayUpdate == 1 ] || [$updateRate == 0]; then
 	
-     	$displayUpdate=0
-		$updateRate=$updateRateMax
-	
-	    monitor
-	
+     	displayUpdate=0
+		updateRate=$updateRateMax
+
 		case "$hwDisplayMenu" in
 		0)
 			show_name
@@ -147,6 +152,4 @@ while true; do
 			;;
 		esac
     fi
-	
-	$updateRate=$updateRate-1
 done
