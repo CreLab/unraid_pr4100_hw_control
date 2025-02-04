@@ -70,7 +70,7 @@ get_sys_info()
 
 check_btn_pressed()
 {
-    com_serial "ISR" btn
+    get_btn_state btn
 
     case $btn in
     40*)
@@ -87,6 +87,11 @@ check_btn_pressed()
         displayUpdate=0
         return
     esac
+}
+
+get_btn_state()
+{
+    com_serial "ISR" $1
 }
 
 ####        Main Function        ####
@@ -111,7 +116,26 @@ while true; do
         sleep 0.25
         check_btn_pressed
         if [ $displayUpdate -eq 1 ]; then
-           break; 
+            max_attempts=10
+            attempts=0
+            
+            while [ $attempts -lt $max_attempts ]; do
+                get_btn_state btn
+             
+                if [ $btn = "00" ]; then
+				    verbose " INFO: button released at count $attempts"
+                    break;
+                fi
+             
+                if [ $attempts -eq $max_attempts ]; then
+				    displayUpdate=0
+				    verbose " WARNING: release button, do not hold them!"
+                    break;
+                fi
+                
+                attempts=$((attempts + 1))
+            done
+            break; 
         fi
 
         updateRate=$((updateRate - 1))

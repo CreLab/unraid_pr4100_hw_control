@@ -60,7 +60,7 @@ com_serial()
 
         attempts=$((attempts + 1))
         verbose " WARNING: Received an $res with command $cmd. (Retry: $attempts)"
-	res=""
+        res=""
     done
 
     verbose " ERROR: Maximum count of requests reached for command $cmd"
