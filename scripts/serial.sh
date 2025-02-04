@@ -1,14 +1,29 @@
 #!/bin/bash
 
+####         Includes        ####
+
+source ./scripts/debug.sh
+
 ####      Global Defines     ####
 
-hwTTY=/dev/ttyS2              # Used to init tty variable, gets changed based on kernal in get_sys_info()
+hwTTY=/dev/ttyS2
 
 ####        Function         ####
 
 init_serial()
 {
-    hwTTY=/dev/ttyS2
+    case "$( uname -s )" in
+        Linux*)  hwSystem=Linux;;
+        *)       hwSystem="Other"
+    esac
+
+    if [ $hwSystem == Linux ]; then
+        hwTTY=/dev/ttyS2
+    else
+        verbose " Sorry, This software version for the WD PR4100 Hardware does not support $hwSystem platform."
+        verbose " Please create an issue on Github to see about gettin support added"
+        exit 1
+    fi
 }
 
 open_serial()
@@ -21,32 +36,34 @@ close_serial()
     exec 4<&- 5>&-
 }
 
-read_serial()
+com_serial()
 {
     local cmd=$1
     declare -n result="$2"
+    local max_attempts=10
+    local attempts=0
 
-    open_serial
+    while [ $attempts -lt $max_attempts ]; do
+	    sleep 0.010
+	
+        open_serial
 
-    echo "$cmd" >&5
-    read -r -n 20 res <&4
+        echo "$cmd" >&5
+        read -r -n 20 res <&4
 
-    close_serial
+        close_serial
 
-    result=$(echo $res | cut -d'=' -f2)
-}
+        if [[ $res != *"ERR"* ] || [ $res != *"RR"* ] || [ $res != *"R"* ]]; then
+            result=$(echo $res | cut -d'=' -f2)
+            return 0
+        fi
 
-write_serial()
-{
-    local cmd=$1
-    declare -n result="$2"
+        attempts=$((attempts + 1))
+        verbose " WARNING: Received an ERR with command $cmd. (Retry: $attempts)"
+		
+		res=""
+    done
 
-    open_serial
-
-    echo "$cmd" >&5
-    read -r -n 20 res <&4
-
-    close_serial
-
-    result=$res
+    verbose " ERROR: Maximum count of requests reached for command $cmd"
+    exit 1
 }

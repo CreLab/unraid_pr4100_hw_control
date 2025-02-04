@@ -32,7 +32,7 @@ init_linux_drivers()
             readarray -t hwHDDArray < <(for a in "${tmparr[@]}"; do echo "/dev/$a"; done | sort)
         fi
     done
-    verbose "INFO: Detected internal bay drives: ${hwHDDArray[@]}"
+    verbose " INFO: Detected internal bay drives: ${hwHDDArray[@]}"
 }
 
 ####        Function         ####
@@ -77,7 +77,7 @@ get_mainboardtemp()
 
 monitor()
 {
-    read_serial "RPM" rpm
+    com_serial "RPM" rpm
     verbose "| RPM is $rpm"
     if [ "$rpm" != "ERR" ] && [ "$rpm" != "ACK" ]; then
         rpmdec=$((0x$rpm))
@@ -89,7 +89,7 @@ monitor()
         verbose " WARNING: PMC RPM return value is $rpm"
     fi
 
-    read_serial "TMP" tmp
+    com_serial "TMP" tmp
     verbose "| TMP is $tmp"
     if [ "$tmp" != "ERR" ]; then
         tmpdec=$((0x$tmp))
@@ -168,6 +168,6 @@ monitor()
         fi
         
         verbose "Setting fan speed to: $setspeed%"
-        write_serial "FAN=$setspeed" res
+        com_serial "FAN=$setspeed" res
     fi
 }

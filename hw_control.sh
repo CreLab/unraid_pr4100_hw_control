@@ -27,7 +27,7 @@ hwDisplayEntries=8
 hwDisplayMenu=0
 displayUpdate=0
 updateRate=0
-updateRateMax=100
+updateRateMax=25
 
 ####        Init Function        ####
 
@@ -59,7 +59,7 @@ get_sys_info()
     if [ $hwSystem == Linux ]; then
         verbose " INFO: Detected Linux Kernel "
         init_linux_drivers
-    else    
+    else
         verbose " Sorry, This software version for the WD PR4100 Hardware does not support $hwSystem platform."
         verbose " Please create an issue on Github to see about gettin support added"
         exit 1
@@ -70,7 +70,7 @@ get_sys_info()
 
 check_btn_pressed()
 {
-    raed_serial "ISR" btn
+    com_serial "ISR" btn
 
     case $btn in
     40*)
@@ -96,12 +96,10 @@ check_for_dependencies
 get_sys_info
 
 verbose " INFO: Getting system status and firmware version!"
-read_serial "VER" res
+com_serial "VER" res
 verbose "VER=$res"
-read_serial "CFG" res
-verbose "CFG=$res"
-read_serial "STA" res
-verbose "STA=$res"
+com_serial "IMR=FF" res
+verbose "IMR=$res"
 
 show_name
 set_pwr_led SOLID BLU
@@ -109,16 +107,18 @@ verbose "# INIT DONE #"
 
 while true; do
     monitor
-    
+
     for i in $(seq $updateRateMax); do
-        sleep 0.100
+        sleep 0.25
         check_btn_pressed
-        
-        updateRate=$updateRate-1
+        if [ $displayUpdate -eq 1 ]; then
+           break; 
+        fi
+
+        updateRate=$((updateRate - 1))
     done
-        
-    if [ $displayUpdate == 1 ] || [$updateRate == 0]; then
-    
+
+    if [[ $displayUpdate -eq 1 ] || [ $updateRate -eq 0 ]]; then
         displayUpdate=0
         updateRate=$updateRateMax
 
