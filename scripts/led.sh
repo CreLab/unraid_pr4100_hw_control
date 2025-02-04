@@ -11,10 +11,10 @@ source ./scripts/serial.sh
 
 set_pwr_led()
 {
-    if [ "$1" -eq "SOLID" ]; then
+    if [ "$1" = "SOLID" ]; then
         com_serial "BLK=00" res
         com_serial "PLS=00" res
-        
+
         case "$2" in
             "BLU")
                 com_serial "LED=01" res
@@ -43,7 +43,7 @@ set_pwr_led()
         esac
     fi
 
-    if [ "$1" -eq "FLASH" ]; then
+    if [ "$1" = "FLASH" ]; then
         com_serial "LED=00" res
         com_serial "PLS=00" res
 
@@ -75,7 +75,7 @@ set_pwr_led()
         esac
     fi
 
-    if [ "$1" -eq "PULSE" ]; then
+    if [ "$1" = "PULSE" ]; then
         com_serial "PLS=01" res
         com_serial "LED=00" res
         com_serial "BLK=00" res

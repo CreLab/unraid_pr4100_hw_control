@@ -44,8 +44,8 @@ com_serial()
     local attempts=0
 
     while [ $attempts -lt $max_attempts ]; do
-	    sleep 0.010
-	
+        sleep 0.010
+
         open_serial
 
         echo "$cmd" >&5
@@ -53,15 +53,14 @@ com_serial()
 
         close_serial
 
-        if [[ $res != *"ERR"* ] || [ $res != *"RR"* ] || [ $res != *"R"* ]]; then
+        if [[ $res != *"ERR"* && $res != "RR" && $res != "R" ]]; then
             result=$(echo $res | cut -d'=' -f2)
             return 0
         fi
 
         attempts=$((attempts + 1))
-        verbose " WARNING: Received an ERR with command $cmd. (Retry: $attempts)"
-		
-		res=""
+        verbose " WARNING: Received an $res with command $cmd. (Retry: $attempts)"
+	res=""
     done
 
     verbose " ERROR: Maximum count of requests reached for command $cmd"

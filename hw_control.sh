@@ -95,14 +95,13 @@ set_verbose $1
 check_for_dependencies
 get_sys_info
 
-verbose " INFO: Getting system status and firmware version!"
 com_serial "VER" res
 verbose "VER=$res"
 com_serial "IMR=FF" res
 verbose "IMR=$res"
 
 show_name
-set_pwr_led SOLID BLU
+set_pwr_led "SOLID" "BLU"
 verbose "# INIT DONE #"
 
 while true; do
@@ -118,7 +117,7 @@ while true; do
         updateRate=$((updateRate - 1))
     done
 
-    if [[ $displayUpdate -eq 1 ] || [ $updateRate -eq 0 ]]; then
+    if [ $displayUpdate -eq 1 ] || [ $updateRate -eq 0 ]; then
         displayUpdate=0
         updateRate=$updateRateMax
 
