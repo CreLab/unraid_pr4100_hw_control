@@ -24,6 +24,12 @@ For full use after reboot use the following install script:
   $ sh ./install.sh
   $ shutdown -r now
 ```
+If you have some problems with this method. Run the following commands to revert the `go` script first and try the the second install method:
+
+```
+  $ rm /boot/config/go
+  $ cp /boot/config/go.bak /boot/config/go
+```
 
 ## Installation via User Scripts Plugin
 To run a script on startup in Unraid, you can use the User Scripts plugin. Here are the steps to achieve this:
